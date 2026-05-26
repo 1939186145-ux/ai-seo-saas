@@ -1,0 +1,74 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let radarChart = null;
+let trendChart = null;
+
+function run(){
+
+fetch("/analyze",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+url:document.getElementById("url").value,
+query:document.getElementById("query").value
+})
+})
+
+.then(r=>r.json())
+.then(data=>{
+
+if(!data.success){
+alert(data.error);
+return;
+}
+
+// ===== 分数 =====
+document.getElementById("scores").innerHTML =
+`GEO:${data.scores.geo_score} | Citation:${data.scores.citation_score} | Ranking:${data.scores.ranking_score}`;
+
+// ===== 实体 =====
+document.getElementById("entities").innerHTML =
+data.entities.map(e=>`<span class="tag">${e}</span>`).join("");
+
+// ===== AI =====
+document.getElementById("rewrite").innerText =
+data.optimization.rewrite;
+
+// ===== 雷达图 =====
+let r = data.visual.radar;
+
+if(radarChart) radarChart.destroy();
+
+radarChart = new Chart(document.getElementById("radar"),{
+type:"radar",
+data:{
+labels:r.labels,
+datasets:[{
+label:"SEO",
+data:r.values
+}]
+}
+});
+
+// ===== 趋势图 =====
+let t = data.visual.trend;
+
+if(trendChart) trendChart.destroy();
+
+trendChart = new Chart(document.getElementById("trend"),{
+type:"line",
+data:{
+labels:t.dates,
+datasets:[
+{label:"GEO",data:t.geo},
+{label:"Citation",data:t.citation},
+{label:"Ranking",data:t.ranking}
+]
+}
+});
+
+});
+
+}
+</script>

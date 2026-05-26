@@ -1,0 +1,14 @@
+flask
+flask_sqlalchemy
+flask_login
+flask_cors
+requests
+beautifulsoup4
+lxml
+numpy
+faiss-cpu
+sentence-transformers
+jieba
+scikit-learn
+openai
+sniffio
