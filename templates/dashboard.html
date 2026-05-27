@@ -1,49 +1,52 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-
 <meta charset="UTF-8">
-
-<title>AI SEO SaaS V5</title>
+<title>AI SEO SaaS V6</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-
 body{
-    font-family:Arial;
-    background:#f4f7fb;
-    padding:20px;
+    font-family: Arial;
+    background: #f4f7fb;
+    padding: 20px;
 }
 
 .container{
-    width:1200px;
-    margin:auto;
+    width: 1200px;
+    margin: auto;
 }
 
 .card{
-    background:white;
-    padding:20px;
-    margin-top:20px;
-    border-radius:15px;
-    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    background: white;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 input{
-    width:100%;
-    padding:12px;
-    margin-top:10px;
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
 }
 
 button{
-    margin-top:15px;
-    padding:12px 25px;
-    border:none;
-    background:#2563eb;
-    color:white;
-    border-radius:8px;
-    cursor:pointer;
+    margin-top: 15px;
+    padding: 12px 25px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+button:disabled{
+    background: #94a3b8;
+    cursor: not-allowed;
 }
 
 .tag{
@@ -61,10 +64,20 @@ button{
 }
 
 .score{
-    font-size:22px;
-    margin-top:10px;
+    font-size:18px;
+    margin-top:8px;
 }
 
+#status{
+    margin-top:10px;
+    color:#2563eb;
+    font-weight:bold;
+}
+
+#error{
+    color:red;
+    margin-top:10px;
+}
 </style>
 
 </head>
@@ -73,80 +86,61 @@ button{
 
 <div class="container">
 
-<h1>🚀 AI SEO SaaS 企业系统 V5</h1>
+<h1>🚀 AI SEO SaaS V6（产品化版本）</h1>
 
 <div class="card">
 
 <input id="url" placeholder="输入URL">
-
 <input id="query" placeholder="输入关键词">
 
-<button onclick="run()">开始分析</button>
+<button id="btn" onclick="run()">开始分析</button>
+
+<div id="status"></div>
+<div id="error"></div>
 
 </div>
 
 <div class="grid">
 
 <div class="card">
-
 <h2>📊 SEO评分</h2>
-
 <div id="scores"></div>
-
 </div>
 
 <div class="card">
-
 <h2>🏭 行业识别</h2>
-
 <div id="industry"></div>
-
 </div>
 
 </div>
 
 <div class="card">
-
 <h2>💡 SEO优化建议</h2>
-
 <ul id="seo"></ul>
-
 </div>
 
 <div class="card">
-
 <h2>🏷 实体云</h2>
-
 <div id="entities"></div>
-
 </div>
 
 <div class="grid">
 
 <div class="card">
-
 <h2>📈 SEO雷达图</h2>
-
 <canvas id="radar"></canvas>
-
 </div>
 
 <div class="card">
-
 <h2>📉 SEO趋势图</h2>
-
 <canvas id="trend"></canvas>
-
 </div>
 
 </div>
 
 <div class="card">
-
 <h2>🧠 AI优化内容</h2>
-
 <pre id="rewrite"></pre>
-
 </div>
 
 </div>
@@ -156,140 +150,127 @@ button{
 let radarChart = null;
 let trendChart = null;
 
-function run(){
+async function run(){
 
-fetch("/analyze",{
+    const btn = document.getElementById("btn");
+    const status = document.getElementById("status");
+    const error = document.getElementById("error");
 
-method:"POST",
+    const url = document.getElementById("url").value;
+    const query = document.getElementById("query").value;
 
-headers:{
-"Content-Type":"application/json"
-},
+    // =========================
+    // UI状态：加载中
+    // =========================
+    btn.disabled = true;
+    status.innerText = "⏳ AI正在分析中...";
+    error.innerText = "";
 
-body:JSON.stringify({
+    try{
 
-url:document.getElementById("url").value,
+        const res = await fetch("/analyze", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ url, query })
+        });
 
-query:document.getElementById("query").value
+        const data = await res.json();
 
-})
+        if(!data.success){
+            throw new Error(data.error || "分析失败");
+        }
 
-})
+        // =========================
+        // scores
+        // =========================
+        document.getElementById("scores").innerHTML = `
+            <div class="score">GEO：${data.scores.geo_score}</div>
+            <div class="score">Citation：${data.scores.citation_score}</div>
+            <div class="score">Ranking：${data.scores.ranking_score}</div>
+        `;
 
-.then(r=>r.json())
+        // =========================
+        // industry
+        // =========================
+        document.getElementById("industry").innerHTML =
+            `<h3>${data.base.industry}</h3>`;
 
-.then(data=>{
+        // =========================
+        // seo
+        // =========================
+        document.getElementById("seo").innerHTML =
+            data.seo_suggestions.map(i => `<li>${i}</li>`).join("");
 
-// =========================
-// scores
-// =========================
-document.getElementById("scores").innerHTML=`
+        // =========================
+        // entities
+        // =========================
+        document.getElementById("entities").innerHTML =
+            data.entities.map(e => `<span class="tag">${e}</span>`).join("");
 
-<div class="score">GEO：${data.scores.geo_score}</div>
+        // =========================
+        // rewrite
+        // =========================
+        document.getElementById("rewrite").innerText =
+            data.optimization.rewrite;
 
-<div class="score">Citation：${data.scores.citation_score}</div>
+        // =========================
+        // radar
+        // =========================
+        let r = data.visual.radar;
 
-<div class="score">Ranking：${data.scores.ranking_score}</div>
+        if(radarChart) radarChart.destroy();
 
-`;
+        radarChart = new Chart(
+            document.getElementById("radar"),
+            {
+                type:"radar",
+                data:{
+                    labels:r.labels,
+                    datasets:[{
+                        label:"SEO能力",
+                        data:r.values
+                    }]
+                }
+            }
+        );
 
-// =========================
-// industry
-// =========================
-document.getElementById("industry").innerHTML=`
-<h2>${data.base.industry}</h2>
-`;
+        // =========================
+        // trend
+        // =========================
+        let t = data.visual.trend;
 
-// =========================
-// seo
-// =========================
-document.getElementById("seo").innerHTML=
-data.seo_suggestions.map(
-i=>`<li>${i}</li>`
-).join("");
+        if(trendChart) trendChart.destroy();
 
-// =========================
-// entities
-// =========================
-document.getElementById("entities").innerHTML=
-data.entities.map(
-e=>`<span class="tag">${e}</span>`
-).join("");
+        trendChart = new Chart(
+            document.getElementById("trend"),
+            {
+                type:"line",
+                data:{
+                    labels:t.dates,
+                    datasets:[
+                        {label:"GEO", data:t.geo},
+                        {label:"Citation", data:t.citation},
+                        {label:"Ranking", data:t.ranking}
+                    ]
+                }
+            }
+        );
 
-// =========================
-// rewrite
-// =========================
-document.getElementById("rewrite").innerText=
-data.optimization.rewrite;
+        status.innerText = "✅ 分析完成";
 
-// =========================
-// radar
-// =========================
-let r = data.visual.radar;
+    }catch(err){
 
-if(radarChart){
-radarChart.destroy();
-}
+        console.error(err);
+        error.innerText = "❌ " + err.message;
+        status.innerText = "";
 
-radarChart = new Chart(
-document.getElementById("radar"),
-{
-type:"radar",
+    }finally{
 
-data:{
-labels:r.labels,
+        btn.disabled = false;
 
-datasets:[{
-label:"SEO能力",
-data:r.values
-}]
-}
-}
-);
-
-// =========================
-// trend
-// =========================
-let t = data.visual.trend;
-
-if(trendChart){
-trendChart.destroy();
-}
-
-trendChart = new Chart(
-document.getElementById("trend"),
-{
-type:"line",
-
-data:{
-
-labels:t.dates,
-
-datasets:[
-
-{
-label:"GEO",
-data:t.geo
-},
-
-{
-label:"Citation",
-data:t.citation
-},
-
-{
-label:"Ranking",
-data:t.ranking
-}
-
-]
-
-}
-}
-);
-
-});
-
+    }
 }
 
 </script>
