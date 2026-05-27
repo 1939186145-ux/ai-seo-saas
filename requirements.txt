@@ -14,12 +14,3 @@ numpy==2.4.6
 scikit-learn==1.8.0
 
 markdownify==1.2.2
-
-zhipuai==2.1.5.20250825
-
-# 🔥 关键补齐依赖（解决 sniffio / httpx / anyio）
-sniffio==1.3.1
-httpx==0.28.1
-anyio==4.13.0
-pydantic==2.13.4
-typing_extensions==4.15.0
