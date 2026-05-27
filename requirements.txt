@@ -1,5 +1,6 @@
 flask
 flask_sqlalchemy
+gunicorn
 flask_login
 flask_cors
 requests
