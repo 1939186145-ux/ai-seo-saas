@@ -1,43 +1,34 @@
-# vector_store.py（Render稳定版）
-
+import faiss
 import numpy as np
-
-# =========================
-# 简易内存向量库（替代FAISS）
-# =========================
-
-_VECTOR_DB = {
-    "embeddings": None,
-    "chunks": None
-}
-
+import pickle
+import os
 
 def save_faiss(chunks, embeddings):
-    """
-    保存向量（替代 FAISS）
-    """
-    _VECTOR_DB["chunks"] = chunks
-    _VECTOR_DB["embeddings"] = np.array(embeddings)
-    return True
 
+    if not os.path.exists("vector_db"):
+        os.makedirs("vector_db")
 
-def cosine_similarity(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    embeddings_np = np.array(
+        embeddings,
+        dtype="float32"
+    )
 
+    dim = embeddings_np.shape[1]
 
-def hybrid_search(query_embedding, top_k=5):
-    """
-    简化检索（替代 FAISS search）
-    """
-    if _VECTOR_DB["embeddings"] is None:
-        return []
+    index = faiss.IndexFlatL2(dim)
 
-    scores = []
+    index.add(embeddings_np)
 
-    for i, emb in enumerate(_VECTOR_DB["embeddings"]):
-        score = cosine_similarity(query_embedding, emb)
-        scores.append((score, _VECTOR_DB["chunks"][i]))
+    faiss.write_index(
+        index,
+        "vector_db/faiss.index"
+    )
 
-    scores.sort(reverse=True, key=lambda x: x[0])
+    with open(
+        "vector_db/chunks.pkl",
+        "wb"
+    ) as f:
 
-    return [text for _, text in scores[:top_k]]
+        pickle.dump(chunks, f)
+
+    print("FAISS 保存成功")

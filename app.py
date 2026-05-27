@@ -111,11 +111,7 @@ def analyze():
 
         for q in expanded_queries:
 
-            r = hybrid_search(
-    query_embedding=q_embedding,
-    stored_embeddings=embeddings,
-    chunks=chunks
-)
+            r = hybrid_search(q)
 
             if r:
                 docs.extend(r)
@@ -242,8 +238,10 @@ def analyze():
 # =========================
 # Run
 # =========================
-import os
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )
