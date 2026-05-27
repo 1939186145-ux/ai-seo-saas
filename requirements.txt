@@ -12,3 +12,5 @@ markdownify
 jieba
 scikit-learn
 numpy
+
+zhipuai
