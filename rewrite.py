@@ -38,6 +38,10 @@ def ai_rewrite(text):
 把下面文章优化成适合AI搜索引擎引用的内容。
 
 要求：
+- 保留原始事实
+- 不允许扩写内容
+- 不允许编造数据
+- 不允许改变行业术语
 
 【SEO】
 - 标题关键词优化
@@ -83,7 +87,7 @@ def ai_rewrite(text):
                 ]
             )
 
-            return response.choices[0].message.content
+            return response.choices[0].message.content.strip()
 
         except Exception as e:
             # AI失败 fallback

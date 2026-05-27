@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>AI SEO SaaS V6</title>
+<title>AI SEO SaaS V7（Production Stable）</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -42,19 +42,11 @@ button{
     color: white;
     border-radius: 8px;
     cursor: pointer;
+    margin-right: 10px;
 }
 
 button:disabled{
     background: #94a3b8;
-    cursor: not-allowed;
-}
-
-.tag{
-    display:inline-block;
-    background:#dbeafe;
-    margin:5px;
-    padding:6px 10px;
-    border-radius:8px;
 }
 
 .grid{
@@ -78,6 +70,23 @@ button:disabled{
     color:red;
     margin-top:10px;
 }
+
+.tag{
+    display:inline-block;
+    background:#dbeafe;
+    margin:5px;
+    padding:6px 10px;
+    border-radius:8px;
+}
+
+.linkBox{
+    margin-top:10px;
+    padding:10px;
+    background:#f1f5f9;
+    border-radius:8px;
+    font-size:14px;
+    word-break: break-all;
+}
 </style>
 
 </head>
@@ -86,20 +95,32 @@ button:disabled{
 
 <div class="container">
 
-<h1>🚀 AI SEO SaaS V6（产品化版本）</h1>
+<h1>🚀 AI SEO SaaS V7（Production Stable）</h1>
 
+<!-- INPUT -->
 <div class="card">
+    <input id="url" placeholder="输入URL">
+    <input id="query" placeholder="输入关键词">
 
-<input id="url" placeholder="输入URL">
-<input id="query" placeholder="输入关键词">
+    <button onclick="run()" id="btn">开始分析</button>
 
-<button id="btn" onclick="run()">开始分析</button>
-
-<div id="status"></div>
-<div id="error"></div>
-
+    <div id="status"></div>
+    <div id="error"></div>
 </div>
 
+<!-- ACTIONS -->
+<div class="card">
+<h2>📦 报告中心</h2>
+
+<div>
+    <button onclick="copyLink()">📤 复制分享链接</button>
+    <button onclick="downloadPDF()">📄 下载PDF报告</button>
+</div>
+
+<div id="shareLink" class="linkBox"></div>
+</div>
+
+<!-- RESULTS -->
 <div class="grid">
 
 <div class="card">
@@ -115,24 +136,24 @@ button:disabled{
 </div>
 
 <div class="card">
-<h2>💡 SEO优化建议</h2>
-<ul id="seo"></ul>
+<h2>🏷 实体分析</h2>
+<div id="entities"></div>
 </div>
 
 <div class="card">
-<h2>🏷 实体云</h2>
-<div id="entities"></div>
+<h2>💡 SEO建议</h2>
+<ul id="seo"></ul>
 </div>
 
 <div class="grid">
 
 <div class="card">
-<h2>📈 SEO雷达图</h2>
+<h2>📈 雷达图</h2>
 <canvas id="radar"></canvas>
 </div>
 
 <div class="card">
-<h2>📉 SEO趋势图</h2>
+<h2>📉 趋势图</h2>
 <canvas id="trend"></canvas>
 </div>
 
@@ -149,31 +170,41 @@ button:disabled{
 
 let radarChart = null;
 let trendChart = null;
+let lastReportId = null;
 
+/* =========================
+   SAFE GET
+========================= */
+function safe(obj, path, fallback){
+    try{
+        return path.split('.').reduce((o,k)=>o?.[k], obj) ?? fallback;
+    }catch(e){
+        return fallback;
+    }
+}
+
+/* =========================
+   RUN
+========================= */
 async function run(){
+
+    const url = document.getElementById("url").value || "";
+    const query = document.getElementById("query").value || "";
 
     const btn = document.getElementById("btn");
     const status = document.getElementById("status");
     const error = document.getElementById("error");
 
-    const url = document.getElementById("url").value;
-    const query = document.getElementById("query").value;
-
-    // =========================
-    // UI状态：加载中
-    // =========================
     btn.disabled = true;
-    status.innerText = "⏳ AI正在分析中...";
+    status.innerText = "⏳ 分析中...";
     error.innerText = "";
 
     try{
 
         const res = await fetch("/analyze", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ url, query })
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({url, query})
         });
 
         const data = await res.json();
@@ -182,43 +213,45 @@ async function run(){
             throw new Error(data.error || "分析失败");
         }
 
-        // =========================
-        // scores
-        // =========================
+        lastReportId = data.report_id || "";
+
+        document.getElementById("shareLink").innerText =
+            lastReportId ? `${window.location.origin}/report/${lastReportId}` : "";
+
+        const scores = data.scores || {};
+        const visual = data.visual || {};
+        const base = data.base || {};
+
+        /* ================= SCORES ================= */
         document.getElementById("scores").innerHTML = `
-            <div class="score">GEO：${data.scores.geo_score}</div>
-            <div class="score">Citation：${data.scores.citation_score}</div>
-            <div class="score">Ranking：${data.scores.ranking_score}</div>
+            <div class="score">GEO：${scores.geo_score ?? 0}</div>
+            <div class="score">Citation：${scores.citation_score ?? 0}</div>
+            <div class="score">Ranking：${scores.ranking_score ?? 0}</div>
         `;
 
-        // =========================
-        // industry
-        // =========================
         document.getElementById("industry").innerHTML =
-            `<h3>${data.base.industry}</h3>`;
+            `<h3>${base.industry || "未知"}</h3>`;
 
-        // =========================
-        // seo
-        // =========================
+        /* ================= SEO ================= */
         document.getElementById("seo").innerHTML =
-            data.seo_suggestions.map(i => `<li>${i}</li>`).join("");
+            (data.seo_suggestions || [])
+            .map(i => `<li>${i}</li>`)
+            .join("");
 
-        // =========================
-        // entities
-        // =========================
+        /* ================= ENTITIES ================= */
         document.getElementById("entities").innerHTML =
-            data.entities.map(e => `<span class="tag">${e}</span>`).join("");
+            (data.entities || [])
+            .slice(0, 50)
+            .map(e => `<span class="tag">${e}</span>`)
+            .join("");
 
-        // =========================
-        // rewrite
-        // =========================
+        /* ================= REWRITE ================= */
         document.getElementById("rewrite").innerText =
-            data.optimization.rewrite;
+            safe(data, "optimization.rewrite", "");
 
-        // =========================
-        // radar
-        // =========================
-        let r = data.visual.radar;
+        /* ================= RADAR ================= */
+        const radarLabels = safe(visual, "radar.labels", []);
+        const radarValues = safe(visual, "radar.values", []);
 
         if(radarChart) radarChart.destroy();
 
@@ -227,19 +260,17 @@ async function run(){
             {
                 type:"radar",
                 data:{
-                    labels:r.labels,
+                    labels: radarLabels,
                     datasets:[{
                         label:"SEO能力",
-                        data:r.values
+                        data: radarValues
                     }]
                 }
             }
         );
 
-        // =========================
-        // trend
-        // =========================
-        let t = data.visual.trend;
+        /* ================= TREND ================= */
+        const trend = visual.trend || {};
 
         if(trendChart) trendChart.destroy();
 
@@ -248,29 +279,52 @@ async function run(){
             {
                 type:"line",
                 data:{
-                    labels:t.dates,
+                    labels: trend.dates || [],
                     datasets:[
-                        {label:"GEO", data:t.geo},
-                        {label:"Citation", data:t.citation},
-                        {label:"Ranking", data:t.ranking}
+                        {label:"GEO", data: trend.geo || []},
+                        {label:"Citation", data: trend.citation || []},
+                        {label:"Ranking", data: trend.ranking || []}
                     ]
                 }
             }
         );
 
-        status.innerText = "✅ 分析完成";
+        status.innerText = "✅ 完成";
 
     }catch(err){
-
-        console.error(err);
         error.innerText = "❌ " + err.message;
-        status.innerText = "";
-
     }finally{
-
         btn.disabled = false;
-
     }
+}
+
+/* =========================
+   COPY LINK
+========================= */
+function copyLink(){
+
+    if(!lastReportId){
+        alert("请先生成报告");
+        return;
+    }
+
+    const link = `${window.location.origin}/report/${lastReportId}`;
+    navigator.clipboard.writeText(link);
+
+    alert("已复制链接");
+}
+
+/* =========================
+   PDF
+========================= */
+function downloadPDF(){
+
+    if(!lastReportId){
+        alert("请先生成报告");
+        return;
+    }
+
+    window.open(`/report/${lastReportId}/pdf`, "_blank");
 }
 
 </script>
