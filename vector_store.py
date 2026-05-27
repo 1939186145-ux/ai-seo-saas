@@ -2,39 +2,42 @@
 
 import numpy as np
 
-# 简单内存向量库（替代FAISS）
-VECTOR_DB = {
-    "chunks": [],
-    "vectors": []
+# =========================
+# 简易内存向量库（替代FAISS）
+# =========================
+
+_VECTOR_DB = {
+    "embeddings": None,
+    "chunks": None
 }
+
 
 def save_faiss(chunks, embeddings):
     """
-    用内存方式存储向量（替代FAISS）
+    保存向量（替代 FAISS）
     """
-    VECTOR_DB["chunks"] = chunks
-    VECTOR_DB["vectors"] = np.array(embeddings)
-
-    print("向量库保存成功（内存版）")
-
-
-def load_vectors():
-    return VECTOR_DB
+    _VECTOR_DB["chunks"] = chunks
+    _VECTOR_DB["embeddings"] = np.array(embeddings)
+    return True
 
 
-def search(query_vector, top_k=5):
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+
+def hybrid_search(query_embedding, top_k=5):
     """
-    简单余弦相似度搜索
+    简化检索（替代 FAISS search）
     """
-    if len(VECTOR_DB["vectors"]) == 0:
+    if _VECTOR_DB["embeddings"] is None:
         return []
 
-    vectors = VECTOR_DB["vectors"]
+    scores = []
 
-    scores = np.dot(vectors, query_vector) / (
-        np.linalg.norm(vectors, axis=1) * np.linalg.norm(query_vector)
-    )
+    for i, emb in enumerate(_VECTOR_DB["embeddings"]):
+        score = cosine_similarity(query_embedding, emb)
+        scores.append((score, _VECTOR_DB["chunks"][i]))
 
-    top_idx = np.argsort(scores)[::-1][:top_k]
+    scores.sort(reverse=True, key=lambda x: x[0])
 
-    return [VECTOR_DB["chunks"][i] for i in top_idx]
+    return [text for _, text in scores[:top_k]]

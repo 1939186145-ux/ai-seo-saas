@@ -1,63 +1,25 @@
-from rank_bm25 import BM25Okapi
-import jieba
-import pickle
-import faiss
+# hybrid_retrieval.py（Render稳定版）
+
 import numpy as np
 
-from zhipuai import ZhipuAI
-from dotenv import load_dotenv
-import os
+def simple_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-load_dotenv()
 
-client = ZhipuAI(
-    api_key=os.getenv("ZHIPU_API_KEY")
-)
+def hybrid_search(query_embedding, stored_embeddings, chunks, top_k=5):
+    """
+    替代 BM25 + FAISS 的轻量检索
+    """
 
-def hybrid_search(query, top_k=5):
+    if stored_embeddings is None or len(stored_embeddings) == 0:
+        return []
 
-    with open(
-        "vector_db/chunks.pkl",
-        "rb"
-    ) as f:
-        chunks = pickle.load(f)
+    scores = []
 
-    tokenized_chunks = [
-        list(jieba.cut(chunk))
-        for chunk in chunks
-    ]
+    for i, emb in enumerate(stored_embeddings):
+        score = simple_similarity(query_embedding, emb)
+        scores.append((score, chunks[i]))
 
-    bm25 = BM25Okapi(tokenized_chunks)
+    scores.sort(reverse=True, key=lambda x: x[0])
 
-    bm25_scores = bm25.get_scores(
-        list(jieba.cut(query))
-    )
-
-    index = faiss.read_index(
-        "vector_db/faiss.index"
-    )
-
-    response = client.embeddings.create(
-        model="embedding-3",
-        input=query
-    )
-
-    query_embedding = np.array(
-        [response.data[0].embedding],
-        dtype="float32"
-    )
-
-    scores, ids = index.search(
-        query_embedding,
-        top_k
-    )
-
-    results = []
-
-    for idx in ids[0]:
-
-        if idx < len(chunks):
-
-            results.append(chunks[idx])
-
-    return results
+    return [c for _, c in scores[:top_k]]

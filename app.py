@@ -111,7 +111,11 @@ def analyze():
 
         for q in expanded_queries:
 
-            r = hybrid_search(q)
+            r = hybrid_search(
+    query_embedding=q_embedding,
+    stored_embeddings=embeddings,
+    chunks=chunks
+)
 
             if r:
                 docs.extend(r)
