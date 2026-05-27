@@ -279,4 +279,5 @@ def download_pdf(report_id):
 # RUN
 # =========================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    port = int(os.environ.get("PORT", 10000))
+    serve(app, host="0.0.0.0", port=port)
