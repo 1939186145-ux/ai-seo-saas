@@ -208,6 +208,7 @@ async function run(){
         });
 
         const data = await res.json();
+		if (!data.success) throw new Error("API失败");
 
         if(!data.success){
             throw new Error(data.error || "分析失败");
