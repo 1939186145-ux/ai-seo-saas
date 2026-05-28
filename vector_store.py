@@ -1,4 +1,3 @@
-```python
 import os
 import pickle
 import faiss
@@ -9,40 +8,55 @@ VECTOR_DIR = "vector_db"
 FAISS_FILE = os.path.join(VECTOR_DIR, "faiss.index")
 CHUNK_FILE = os.path.join(VECTOR_DIR, "chunks.pkl")
 
-# 自动创建目录
 os.makedirs(VECTOR_DIR, exist_ok=True)
 
 
 # =========================
-# 保存向量库
+# 保存向量库（V10稳定版）
 # =========================
 def save_faiss(chunks, embeddings):
 
+    # =========================
+    # 防空
+    # =========================
     if not chunks or embeddings is None:
-        return
+        return False
 
-    embeddings = np.array(embeddings).astype("float32")
+    try:
+        embeddings = np.array(embeddings, dtype="float32")
 
-    dim = embeddings.shape[1]
+        # 空数组保护
+        if embeddings.ndim != 2 or len(embeddings) == 0:
+            return False
 
-    index = faiss.IndexFlatL2(dim)
+        dim = embeddings.shape[1]
 
-    index.add(embeddings)
+        # FAISS index
+        index = faiss.IndexFlatL2(dim)
+        index.add(embeddings)
 
-    # 保存索引
-    faiss.write_index(index, FAISS_FILE)
+        # 保存 index
+        faiss.write_index(index, FAISS_FILE)
 
-    # 保存文本块
-    with open(CHUNK_FILE, "wb") as f:
-        pickle.dump(chunks, f)
+        # 保存 chunks
+        with open(CHUNK_FILE, "wb") as f:
+            pickle.dump(chunks, f)
+
+        return True
+
+    except Exception as e:
+        print("[vector_store] save_faiss error:", e)
+        return False
 
 
 # =========================
-# 加载向量库
+# 加载向量库（V10稳定版）
 # =========================
 def load_faiss():
 
-    # 文件不存在
+    # =========================
+    # 文件不存在直接降级
+    # =========================
     if not os.path.exists(FAISS_FILE):
         return None, []
 
@@ -50,13 +64,17 @@ def load_faiss():
         return None, []
 
     try:
-
         index = faiss.read_index(FAISS_FILE)
 
         with open(CHUNK_FILE, "rb") as f:
             chunks = pickle.load(f)
 
+        # 防止数据不一致
+        if len(chunks) == 0:
+            return None, []
+
         return index, chunks
 
-    except:
+    except Exception as e:
+        print("[vector_store] load_faiss error:", e)
         return None, []

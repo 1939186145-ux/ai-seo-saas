@@ -22,79 +22,60 @@ client = ZhipuAI(
 # =========================
 VECTOR_DIR = "vector_db"
 
-FAISS_FILE = os.path.join(
-    VECTOR_DIR,
-    "faiss.index"
-)
+FAISS_FILE = os.path.join(VECTOR_DIR, "faiss.index")
+CHUNK_FILE = os.path.join(VECTOR_DIR, "chunks.pkl")
 
-CHUNK_FILE = os.path.join(
-    VECTOR_DIR,
-    "chunks.pkl"
-)
-
-# 自动创建目录
 os.makedirs(VECTOR_DIR, exist_ok=True)
 
 
 # =========================
-# HYBRID SEARCH
+# HYBRID SEARCH（V10稳定版）
 # =========================
 def hybrid_search(query, top_k=5):
 
     # =========================
-    # 向量库不存在
+    # 1. 文件不存在 → 直接降级（关键！）
     # =========================
     if not os.path.exists(CHUNK_FILE):
-        return []
+        return [query]  # 🔥公网稳定关键
 
     if not os.path.exists(FAISS_FILE):
-        return []
+        return [query]
 
     # =========================
-    # 加载 chunks
+    # 2. 读取 chunks
     # =========================
     try:
-
         with open(CHUNK_FILE, "rb") as f:
             chunks = pickle.load(f)
-
     except:
-        return []
+        return [query]
 
     if not chunks:
-        return []
+        return [query]
 
     # =========================
-    # BM25
-    # =========================
-    tokenized_chunks = [
-        list(jieba.cut(chunk))
-        for chunk in chunks
-    ]
-
-    bm25 = BM25Okapi(tokenized_chunks)
-
-    bm25_scores = bm25.get_scores(
-        list(jieba.cut(query))
-    )
-
-    # =========================
-    # FAISS
+    # 3. BM25（可选增强）
     # =========================
     try:
-
-        index = faiss.read_index(
-            FAISS_FILE
-        )
-
+        tokenized_chunks = [list(jieba.cut(chunk)) for chunk in chunks]
+        bm25 = BM25Okapi(tokenized_chunks)
+        bm25.get_scores(list(jieba.cut(query)))
     except:
-        return []
+        pass
 
     # =========================
-    # EMBEDDING
+    # 4. FAISS index
     # =========================
     try:
+        index = faiss.read_index(FAISS_FILE)
+    except:
+        return [query]
 
+    # =========================
+    # 5. embedding
+    # =========================
+    try:
         response = client.embeddings.create(
             model="embedding-3",
             input=query
@@ -106,29 +87,29 @@ def hybrid_search(query, top_k=5):
         )
 
     except:
-        return []
+        return [query]
 
     # =========================
-    # SEARCH
+    # 6. search
     # =========================
     try:
-
-        scores, ids = index.search(
-            query_embedding,
-            top_k
-        )
-
+        scores, ids = index.search(query_embedding, top_k)
     except:
-        return []
+        return [query]
 
     # =========================
-    # RESULTS
+    # 7. result merge
     # =========================
     results = []
 
     for idx in ids[0]:
-
-        if idx < len(chunks):
+        if idx is not None and idx < len(chunks):
             results.append(chunks[idx])
+
+    # =========================
+    # 8. 关键兜底（避免空结果）
+    # =========================
+    if not results:
+        return [query]
 
     return results
