@@ -33,7 +33,7 @@ def ai_rewrite(text):
     try:
 
         prompt = f"""
-你是一名SEO/GEO优化专家。
+你是一名顶尖的SEO/GEO优化专家。
 
 请把下面内容：
 
