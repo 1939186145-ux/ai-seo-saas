@@ -1,34 +1,62 @@
+```python
+import os
+import pickle
 import faiss
 import numpy as np
-import pickle
-import os
 
+VECTOR_DIR = "vector_db"
+
+FAISS_FILE = os.path.join(VECTOR_DIR, "faiss.index")
+CHUNK_FILE = os.path.join(VECTOR_DIR, "chunks.pkl")
+
+# 自动创建目录
+os.makedirs(VECTOR_DIR, exist_ok=True)
+
+
+# =========================
+# 保存向量库
+# =========================
 def save_faiss(chunks, embeddings):
 
-    if not os.path.exists("vector_db"):
-        os.makedirs("vector_db")
+    if not chunks or embeddings is None:
+        return
 
-    embeddings_np = np.array(
-        embeddings,
-        dtype="float32"
-    )
+    embeddings = np.array(embeddings).astype("float32")
 
-    dim = embeddings_np.shape[1]
+    dim = embeddings.shape[1]
 
     index = faiss.IndexFlatL2(dim)
 
-    index.add(embeddings_np)
+    index.add(embeddings)
 
-    faiss.write_index(
-        index,
-        "vector_db/faiss.index"
-    )
+    # 保存索引
+    faiss.write_index(index, FAISS_FILE)
 
-    with open(
-        "vector_db/chunks.pkl",
-        "wb"
-    ) as f:
-
+    # 保存文本块
+    with open(CHUNK_FILE, "wb") as f:
         pickle.dump(chunks, f)
 
-    print("FAISS 保存成功")
+
+# =========================
+# 加载向量库
+# =========================
+def load_faiss():
+
+    # 文件不存在
+    if not os.path.exists(FAISS_FILE):
+        return None, []
+
+    if not os.path.exists(CHUNK_FILE):
+        return None, []
+
+    try:
+
+        index = faiss.read_index(FAISS_FILE)
+
+        with open(CHUNK_FILE, "rb") as f:
+            chunks = pickle.load(f)
+
+        return index, chunks
+
+    except:
+        return None, []
